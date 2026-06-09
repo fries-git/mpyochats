@@ -1,13 +1,13 @@
 # mpyochats
 # Plans:
 ## Planned Commands:
-auth - auth flow\
-channels_get - returns a json array of channels\
+auth - auth flow *[done]*\
+channels_get - returns a json array of channels *[done]*\
 message_delete - not planned at start but deletes message\
 message_edit - not planned at start but edits message\
 message_get - gets a specific message\
-message_new - creates and sends a message\
-messages_get - takes an input returns that many messages\
+message_new - creates and sends a message *[done]*\
+messages_get - takes an input returns that many messages *[done]*\
 typing - not planned at start but lets all clients know someone is typing kind of heartbeat situation\
 user_connect - not planned at start but shows to all clients someone just got online\
 user_disconnect - not planned at start but shows to all clients someone just went offline\
