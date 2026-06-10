@@ -1,16 +1,20 @@
-import uuid
+# Config ===
+servername = "mpyochats"
+servericon = "https://github.com/fries-git/imagestorage/blob/main/saltychatsicon.webp?raw=true"
+maxmessages = 500
+maxlen = 500
+adminusers = ["fries"]
+# Config ===
 
 from microdot import Microdot
 from microdot.websocket import with_websocket
 import json
 import random
 import time
-
 import requests
-
 app = Microdot()
 commands = {}
-
+readonlyusers = []
 connections = []
 
 def make_id():
@@ -33,6 +37,39 @@ def generatevalidationdata():
             "validator_key": "mpyochats"
         }
     }
+
+async def checkandtrim(channel, ws):
+    filename = f"{channel}.json"
+
+    try:
+        with open(filename, "r") as f:
+            lines = f.readlines()
+    except OSError:
+        return
+
+    if len(lines) <= maxmessages:
+        return
+
+    removed = lines[:-maxmessages]
+    kept = lines[-maxmessages:]
+
+    with open(filename, "w") as f:
+        f.writelines(kept)
+
+    for line in removed:
+        try:
+            msg = json.loads(line)
+            await ws.send(json.dumps({
+                "cmd": "message_delete",
+                "id": msg.get("id"),
+                "channel": channel
+            }))
+            print(f"Trimmed message from {channel}")
+        except:
+            pass
+
+def is_user_online(username):
+    return any(c.username == username for c in connections)
 
 def ready(obj):
     return {
@@ -61,17 +98,36 @@ def channelbreak(mode=1):
         print(f"Error reading config: {e}")
         return []
 
-def save_message(data, conn):
+def getmessagefromid(id, channel):
+    try:
+        with open(f"{channel}.json", "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    msg = json.loads(line)
+                except Exception:
+                    continue
+                if msg.get("id") == id:
+                    return msg
+
+    except OSError as e:
+        print(f"Error occurred while fetching message: {e}")
+
+    return None
+
+async def save_message(data, conn, wsconn):
     channel = data.get("channel")
-    thread_id = data.get("thread_id")
+    await checkandtrim(channel, wsconn)
+
     content = data.get("content", "")
     reply_to = data.get("reply_to")
     ping = data.get("ping", True)
 
     username = conn.username if conn and conn.username else "John Smith"
-
     message_obj = {
-        "id": str(uuid.uuid4()),
+        "id": make_id(),
         "user": username,
         "content": content,
         "timestamp": time.time(),
@@ -86,31 +142,107 @@ def save_message(data, conn):
         }
         message_obj["ping"] = ping
 
-    target_file = f"{channel}.json" if channel else None
-
-    if target_file:
-        try:
-            with open(target_file, "r") as f:
-                raw = f.read().strip()
-                messages = json.loads(raw) if raw else []
-                if not isinstance(messages, list):
-                    messages = []
-        except OSError:
-            messages = []
-
-        messages.append(message_obj)
-
-        with open(target_file, "w") as f:
-            json.dump(messages, f)
+    try:
+        with open(f"{channel}.json", "a") as f:
+            f.write(json.dumps(message_obj))
+            f.write("\n")
+    except OSError:
+        pass
 
     return message_obj
 
+@command("status_set")
+async def status_set(ws, data):
+    conn = next((c for c in connections if c.ws == ws), None)
+    if conn is None:
+        return
+    print(f"Status set: {data}")
+    status = data.get("status")
+    print(f"Status set by: {conn.username}")
+    for conn in connections:
+        await ws.send(json.dumps({
+            "cmd": "status_set",
+            "status": {
+                "status": status,
+            }
+            }))
+    pass
+
+@command("server_info")
+async def server_info(ws, data):
+    await ws.send(json.dumps({
+        "cmd": "server_info",
+        "name": servername,
+        "icon": servericon
+        }))
+
+@command("message_delete")
+async def message_delete(ws, data):
+    conn = next((c for c in connections if c.ws == ws), None)
+    if conn is None:
+        return
+
+    userdeleting = conn.username
+    channel = data.get("channel")
+    message_id = data.get("id")
+
+    message = getmessagefromid(message_id, channel)
+
+    if message is None:
+        return
+
+    if userdeleting == message.get("user"):
+        print(f"User {conn.username} is deleting a message")
+
+        tempname = f"{channel}.tmp"
+
+        with open(f"{channel}.json", "r") as src:
+            with open(tempname, "w") as dst:
+                for line in src:
+                    try:
+                        msg = json.loads(line)
+                    except:
+                        continue
+
+                    if msg.get("id") != message_id:
+                        dst.write(line)
+
+        import os
+
+        try:
+            os.remove(f"{channel}.json")
+        except OSError:
+            pass
+
+        os.rename(tempname, f"{channel}.json")
+
+        dead = []
+
+        for conn in connections:
+            try:
+                await conn.ws.send(json.dumps({
+                    "cmd": "message_delete",
+                    "id": message_id,
+                    "channel": channel
+                }))
+            except Exception as e:
+                print(e)
+                dead.append(conn)
+
+        for conn in dead:
+            connections.remove(conn)
+
+    else:
+        print("User is not the owner of the message")
+        await ws.send(json.dumps({
+            "cmd": "error",
+            "val": "You are not the owner of this message, and thus cannot delete it.",
+            "src": "message_delete"
+        }))
 
 @command("auth")
 async def auth(ws, data):
-    print(f"Received auth data: {data}")
     conn = next((c for c in connections if c.ws == ws), None)
-    print(f"Received validator: {data.get('validator')}")
     if conn is None:
         return
     link = f"https://social.rotur.dev/validate?v={data.get('validator')}&key=mpyochats"
@@ -125,8 +257,6 @@ async def auth(ws, data):
         return
         
     else:
-        print("User validated successfully")
-        print(response)
         await ws.send(json.dumps({
         "cmd": "auth_success",
         "val": "Authentication successful"
@@ -135,8 +265,16 @@ async def auth(ws, data):
     await ws.send(json.dumps(ready(response)))
     conn.user_id = response.get("id")
     conn.username = response.get("username")
-    print(f"User authenticated: {conn.user_id} or {conn.username}")
-    
+    print(f"User authenticated: {conn.username}")
+    await ws.send(json.dumps({
+        "cmd": "user_roles_set",
+        "user": conn.username,
+        "roles": ["user"],
+        "set": True
+        }))
+    usernamestore = conn.username
+    for conn in connections:
+        await conn.ws.send(json.dumps(connect(usernamestore)))
 
 @command("messages_get")
 async def messages_get(ws, data):
@@ -153,25 +291,23 @@ async def messages_get(ws, data):
 
     limit = max(1, min(200, int(limit)))
 
-    filename = f"{channel}.json"
+    messages = []
 
     try:
-        with open(filename, "r") as f:
-            raw = f.read().strip()
-            messages = json.loads(raw) if raw else []
+        with open(f"{channel}.json", "r") as f:
+            for line in f:
+                try:
+                    messages.append(json.loads(line))
+                except:
+                    pass
     except OSError:
-        messages = []
-
-    if not isinstance(messages, list):
-        messages = []
+        pass
 
     messages.sort(key=lambda m: m.get("timestamp", 0))
 
     if isinstance(start, int):
         if start > 0:
             messages = messages[:-start]
-    else:
-        pass
 
     messages = messages[-limit:]
 
@@ -180,17 +316,111 @@ async def messages_get(ws, data):
         "channel": channel,
         "messages": messages
     }))
-    print("getting messages")
+
+    print("getting messages")   
+
+@command("users_list")
+async def users_list(ws, data):
+    users = get_users()
+    await ws.send(json.dumps({
+        "cmd": "users_list",
+        "users": users
+    }))
+    print(f"Users: {users}")    
+
+@command("users_online")
+async def users_online(ws, data):
+    users = get_users()
+    await ws.send(json.dumps({
+        "cmd": "users_list",
+        "users": users
+    }))
+    print(f"Users: {users}") 
 
 @command("message_new")
 async def message_new(ws, data):
     print("Received new message")
-    print(data)
+    print(f"Data: {data}")
+    content = data.get("content")
+    print(f"Content: {content}")
+
+    if len(content) >= maxlen:
+        return await ws.send(json.dumps({
+            "cmd": "error",
+            "val": f"Message too long. Maximum length is {maxlen} characters.",
+            "src": "message_new"
+        }))
 
     conn = next((c for c in connections if c.ws == ws), None)
-    message_obj = save_message(data, conn)
+    username = conn.username if conn and conn.username else "John Smith"
+
+    if content.startswith("!readmode "):
+        if username not in adminusers:
+            return await ws.send(json.dumps({
+                "cmd": "error",
+                "val": "You don't have permission to use this command.",
+                "src": "message_new"
+            }))
+
+        target = content.split(maxsplit=1)[1].lower()
+
+        if target in readonlyusers:
+            readonlyusers.remove(target)
+            msg = f"{target} is no longer in readonly mode."
+        else:
+            readonlyusers.append(target)
+            msg = f"{target} is now in readonly mode."
+
+        server_message = {
+            "id": make_id(),
+            "user": "server",
+            "content": msg,
+            "timestamp": time.time(),
+            "type": "message",
+            "pinned": False
+        }
+
+        dead = []
+
+        for conn in connections:
+            try:
+                packet = {
+                    "cmd": "message_new",
+                    "message": {
+                        **server_message,
+                        "reply_to": None
+                    },
+                    "channel": data.get("channel"),
+                    "thread_id": None,
+                    "global": True
+                }
+
+                await conn.ws.send(json.dumps(packet))
+
+            except Exception as e:
+                print(e)
+                dead.append(conn)
+
+        for conn in dead:
+            try:
+                connections.remove(conn)
+            except Exception as e:
+                print("cleanup failed:", e)
+
+        return
+
+    if username.lower() in readonlyusers:
+        return await ws.send(json.dumps({
+            "cmd": "error",
+            "val": "You're in readonly mode right now! Please be more respectful next time.",
+            "src": "message_new"
+        }))
+
+    message_obj = await save_message(data, conn, ws)
     channelstore = data.get("channel")
+
     dead = []
+
     for conn in connections:
         try:
             packet = {
@@ -203,7 +433,9 @@ async def message_new(ws, data):
                 "thread_id": None,
                 "global": True
             }
+
             await conn.ws.send(json.dumps(packet))
+
         except Exception as e:
             print(e)
             dead.append(conn)
@@ -240,12 +472,34 @@ def get_users():
         for c in connections
     ]
 
+def connect(user):
+    if user in adminusers:
+        role = ["admin", "user"]
+    else:  
+        role = ["user"]
+    return {
+        "cmd": "user_connect",
+        "user": {
+            "username": user,
+            "roles": role,
+            "color": None
+        }
+    }
+
 @app.route('/')
 @with_websocket
 async def echo(request, ws):
     conn = Connection(ws)
-    connections.append(conn)
+    try:
+        connections.append(conn)
+    except Exception as e:
+        print(f"Error occurred while adding connection: {e}")
 
+    await ws.send(json.dumps({
+        "cmd": "server_update",
+        "name": servername,
+        "icon": servericon
+    }))
     await ws.send(json.dumps(generatevalidationdata()))
     try:
         while True:
@@ -261,11 +515,22 @@ async def echo(request, ws):
                 cmd = data.get("cmd")
                 if cmd in commands:
                     await commands[cmd](ws, data)
+                else:
+                    print(f"Undefined/unimplemented command: {cmd}")
     finally:
+        username = conn.username
+
         try:
             connections.remove(conn)
         except:
             pass
+
+        if username and not is_user_online(username):
+            print(f"{username} went fully offline")
+            await ws.send(json.dumps({
+                "cmd": "user_leave",
+                "username": username
+                }))
 
 ported = 8080
 print(f"Server started on port {ported}")
