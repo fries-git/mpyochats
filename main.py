@@ -8,7 +8,7 @@ adminusers = ["fries"]
 port = 8080
 # Config ===
 
-#import network
+import network
 # COMMENT THE ABOVE OUT IF NOT ON MICROCONTROLLER ^
 from microdot import Microdot
 from microdot.websocket import with_websocket
@@ -32,9 +32,9 @@ print(f"Connecting to WiFi network: {SSID} with password: {PASSWORD}")
 
 # COMMENT EVERYTHING BETWEEN THESE TWO COMMENTS IF NOT ON MICROCONTROLLER v
 
-#wifi = network.WLAN(network.STA_IF)
-#wifi.active(True)
-#wifi.connect(SSID, PASSWORD)
+wifi = network.WLAN(network.STA_IF)
+wifi.active(True)
+wifi.connect(SSID, PASSWORD)
 
 # COMMENT EVERYTHING BETWEEN THESE TWO COMMENTS IF NOT ON MICROCONTROLLER ^
 
