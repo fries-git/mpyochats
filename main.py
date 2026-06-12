@@ -64,30 +64,32 @@ async def checkandtrim(channel, ws):
 
     try:
         with open(filename, "r") as f:
-            lines = f.readlines()
+            lines = []
+
+            for line in f:
+                lines.append(line)
+
+                if len(lines) > maxmessages:
+                    old = lines.pop(0)
+
+                    try:
+                        msg = json.loads(old)
+
+                        await ws.send(json.dumps({
+                            "cmd": "message_delete",
+                            "id": msg.get("id"),
+                            "channel": channel
+                        }))
+
+                    except:
+                        pass
+
     except OSError:
         return
 
-    if len(lines) <= maxmessages:
-        return
-
-    removed = lines[:-maxmessages]
-    kept = lines[-maxmessages:]
-
     with open(filename, "w") as f:
-        f.writelines(kept)
-
-    for line in removed:
-        try:
-            msg = json.loads(line)
-            await ws.send(json.dumps({
-                "cmd": "message_delete",
-                "id": msg.get("id"),
-                "channel": channel
-            }))
-            print(f"Trimmed message from {channel}")
-        except:
-            pass
+        for line in lines:
+            f.write(line)
 
 def is_user_online(username):
     return any(c.username == username for c in connections)
@@ -312,19 +314,25 @@ async def messages_get(ws, data):
 
     limit = max(1, min(200, int(limit)))
 
-    messages = []
+    messages = [None] * limit
+    count = 0
 
     try:
         with open(f"{channel}.json", "r") as f:
             for line in f:
                 try:
-                    messages.append(json.loads(line))
+                    messages[count % limit] = json.loads(line)
+                    count += 1
                 except:
                     pass
     except OSError:
         pass
 
-    messages.sort(key=lambda m: m.get("timestamp", 0))
+    if count < limit:
+        messages = messages[:count]
+    else:
+        start = count % limit
+        messages = messages[start:] + messages[:start]
 
     if isinstance(start, int):
         if start > 0:
@@ -548,9 +556,10 @@ async def echo(request, ws):
 
         if username and not is_user_online(username):
             print(f"{username} went fully offline")
-            await ws.send(json.dumps({
-                "cmd": "user_leave",
-                "username": username
+            for c in connections:
+                await c.ws.send(json.dumps({
+                    "cmd": "user_leave",
+                    "username": username
                 }))
 
 print(f"Server started on port {port}")
