@@ -13,3 +13,6 @@ user_disconnect - not planned at start but shows to all clients someone just wen
 users_list - not planned at start but lists all users online *[done]*
 ## Planned Project Ideas:
 Have a working OChats server on a piece of not terrible looking 3D-Printed "jewelry" hanging from my neck.
+# Setup:
+## Wifi
+Create the file wifi.json and in it put {"SSID": "<wifiname>", "PASSWORD": "<password>"}

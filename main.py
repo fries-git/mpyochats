@@ -1,4 +1,5 @@
 # Config ===
+
 servername = "mpyochats"
 servericon = "https://github.com/fries-git/imagestorage/blob/main/saltychatsicon.webp?raw=true"
 maxmessages = 500
@@ -7,6 +8,8 @@ adminusers = ["fries"]
 port = 8080
 # Config ===
 
+#import network
+# COMMENT THE ABOVE OUT IF NOT ON MICROCONTROLLER ^
 from microdot import Microdot
 from microdot.websocket import with_websocket
 import json
@@ -17,6 +20,23 @@ app = Microdot()
 commands = {}
 readonlyusers = []
 connections = []
+
+with open('wifi.json', 'r') as file:
+    # Parse the JSON file directly into a Python object
+    wifi = json.load(file)
+
+SSID = wifi.get("SSID")
+PASSWORD = wifi.get("PASSWORD")
+
+print(f"Connecting to WiFi network: {SSID} with password: {PASSWORD}")
+
+# COMMENT EVERYTHING BETWEEN THESE TWO COMMENTS IF NOT ON MICROCONTROLLER v
+
+#wifi = network.WLAN(network.STA_IF)
+#wifi.active(True)
+#wifi.connect(SSID, PASSWORD)
+
+# COMMENT EVERYTHING BETWEEN THESE TWO COMMENTS IF NOT ON MICROCONTROLLER ^
 
 def make_id():
     return "%08x%08x" % (random.getrandbits(32), random.getrandbits(32))
