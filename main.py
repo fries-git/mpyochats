@@ -4,6 +4,7 @@ servericon = "https://github.com/fries-git/imagestorage/blob/main/saltychatsicon
 maxmessages = 500
 maxlen = 500
 adminusers = ["fries"]
+port = 8080
 # Config ===
 
 from microdot import Microdot
@@ -532,7 +533,6 @@ async def echo(request, ws):
                 "username": username
                 }))
 
-ported = 8080
-print(f"Server started on port {ported}")
-print(f"ws://localhost:{ported}")
-app.run(port=ported)
+print(f"Server started on port {port}")
+print(f"ws://localhost:{port}")
+app.run(port=port)
