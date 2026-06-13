@@ -1,5 +1,4 @@
 # Config ===
-
 servername = "mpyochats"
 servericon = "https://github.com/fries-git/imagestorage/blob/main/saltychatsicon.webp?raw=true"
 maxmessages = 500
@@ -8,35 +7,65 @@ adminusers = ["fries"]
 port = 8080
 # Config ===
 
-import network
-# COMMENT THE ABOVE OUT IF NOT ON MICROCONTROLLER ^
 from microdot import Microdot
+import os
 from microdot.websocket import with_websocket
 import json
 import random
 import time
-import requests
+try:
+    import urequests as requests
+    microcontroller = True
+except ImportError:
+    import requests
+    microcontroller = False
+
 app = Microdot()
 commands = {}
 readonlyusers = []
 connections = []
+if microcontroller:
+    import ntptime
+    import network
+    with open('wifi.json', 'r') as file:
+        # Parse the JSON file directly into a Python object
+        wifi = json.load(file)
 
-with open('wifi.json', 'r') as file:
-    # Parse the JSON file directly into a Python object
-    wifi = json.load(file)
+    SSID = wifi.get("SSID")
+    PASSWORD = wifi.get("PASSWORD")
+    WEBHOOK_URL = wifi.get("WEBHOOK_URL")
 
-SSID = wifi.get("SSID")
-PASSWORD = wifi.get("PASSWORD")
+    print(f"Connecting to WiFi network: {SSID} with password: {PASSWORD}")
 
-print(f"Connecting to WiFi network: {SSID} with password: {PASSWORD}")
+    wifi = network.WLAN(network.STA_IF)
+    wifi.active(True)
+    wifi.connect(SSID, PASSWORD)
 
-# COMMENT EVERYTHING BETWEEN THESE TWO COMMENTS IF NOT ON MICROCONTROLLER v
+    while not wifi.isconnected():
+        time.sleep(0.5)
 
-wifi = network.WLAN(network.STA_IF)
-wifi.active(True)
-wifi.connect(SSID, PASSWORD)
+    print("Connected:", wifi.ifconfig())
+    ntptime.settime()
+    data = wifi.ifconfig()
 
-# COMMENT EVERYTHING BETWEEN THESE TWO COMMENTS IF NOT ON MICROCONTROLLER ^
+    try:
+        if wifi.isconnected():
+            data = {
+                "ip": wifi.ifconfig()[0]
+            }
+
+            try:
+                r = requests.post(WEBHOOK_URL, json=data)
+                print("Status:", r.status_code)
+                r.close()
+            except Exception as e:
+                print("Failed:", e)
+                r = requests.post(WEBHOOK_URL, json=data)
+                print("Status:", r.status_code)
+                print("Response:", r.text)
+                r.close()
+    except Exception as e:
+        print("Failed:", e)
 
 def make_id():
     return "%08x%08x" % (random.getrandbits(32), random.getrandbits(32))
@@ -115,7 +144,7 @@ def channelbreak(mode=1):
             return channels
         else:
             for channel in channels:
-                print(channel)
+                pass
             return None
     except Exception as e:
         print(f"Error reading config: {e}")
@@ -179,9 +208,7 @@ async def status_set(ws, data):
     conn = next((c for c in connections if c.ws == ws), None)
     if conn is None:
         return
-    print(f"Status set: {data}")
     status = data.get("status")
-    print(f"Status set by: {conn.username}")
     for conn in connections:
         await ws.send(json.dumps({
             "cmd": "status_set",
@@ -215,10 +242,7 @@ async def message_delete(ws, data):
         return
 
     if userdeleting == message.get("user"):
-        print(f"User {conn.username} is deleting a message")
-
         tempname = f"{channel}.tmp"
-
         with open(f"{channel}.json", "r") as src:
             with open(tempname, "w") as dst:
                 for line in src:
@@ -229,8 +253,6 @@ async def message_delete(ws, data):
 
                     if msg.get("id") != message_id:
                         dst.write(line)
-
-        import os
 
         try:
             os.remove(f"{channel}.json")
@@ -256,7 +278,6 @@ async def message_delete(ws, data):
             connections.remove(conn)
 
     else:
-        print("User is not the owner of the message")
         await ws.send(json.dumps({
             "cmd": "error",
             "val": "You are not the owner of this message, and thus cannot delete it.",
@@ -346,16 +367,13 @@ async def messages_get(ws, data):
         "messages": messages
     }))
 
-    print("getting messages")   
-
 @command("users_list")
 async def users_list(ws, data):
     users = get_users()
     await ws.send(json.dumps({
         "cmd": "users_list",
         "users": users
-    }))
-    print(f"Users: {users}")    
+    }))   
 
 @command("users_online")
 async def users_online(ws, data):
@@ -364,14 +382,14 @@ async def users_online(ws, data):
         "cmd": "users_list",
         "users": users
     }))
-    print(f"Users: {users}") 
+
+@command("typing")
+async def typing(ws, data):
+    pass
 
 @command("message_new")
 async def message_new(ws, data):
-    print("Received new message")
-    print(f"Data: {data}")
     content = data.get("content")
-    print(f"Content: {content}")
 
     if len(content) >= maxlen:
         return await ws.send(json.dumps({
@@ -384,7 +402,7 @@ async def message_new(ws, data):
     username = conn.username if conn and conn.username else "John Smith"
 
     if content.startswith("!readmode "):
-        if username not in adminusers:
+        if username.lower() not in adminusers:
             return await ws.send(json.dumps({
                 "cmd": "error",
                 "val": "You don't have permission to use this command.",
@@ -413,12 +431,12 @@ async def message_new(ws, data):
 
         for conn in connections:
             try:
+                msg = server_message.copy()
+                msg["reply_to"] = None
+
                 packet = {
                     "cmd": "message_new",
-                    "message": {
-                        **server_message,
-                        "reply_to": None
-                    },
+                    "message": msg,
                     "channel": data.get("channel"),
                     "thread_id": None,
                     "global": True
@@ -452,16 +470,18 @@ async def message_new(ws, data):
 
     for conn in connections:
         try:
+            msg = message_obj.copy()
+            msg["reply_to"] = None
+
             packet = {
                 "cmd": "message_new",
-                "message": {
-                    **message_obj,
-                    "reply_to": None
-                },
+                "message": msg,
                 "channel": channelstore,
                 "thread_id": None,
                 "global": True
             }
+
+            await conn.ws.send(json.dumps(packet))
 
             await conn.ws.send(json.dumps(packet))
 
@@ -478,19 +498,14 @@ async def message_new(ws, data):
 @command("channels_get")
 async def channels_get(ws, data):
     channels = channelbreak(1)
-    print("getting channels")
     await ws.send(json.dumps({
-        "cmd": "channels_get",
-        "val": channels
-    }))
-    print(json.dumps({
         "cmd": "channels_get",
         "val": channels
     }))
 
 def get_users():
     for c in connections:
-        print(c.username)
+        pass
 
     return [
         {
@@ -555,7 +570,6 @@ async def echo(request, ws):
             pass
 
         if username and not is_user_online(username):
-            print(f"{username} went fully offline")
             for c in connections:
                 await c.ws.send(json.dumps({
                     "cmd": "user_leave",

@@ -15,5 +15,5 @@ users_list - not planned at start but lists all users online *[done]*
 Have a working OChats server on a piece of not terrible looking 3D-Printed "jewelry" hanging from my neck.
 # Setup:
 ## Wifi
-Create the file wifi.json and in it put {"SSID": "<wifiname>", "PASSWORD": "<password>"}\
+Create the file wifi.json and in it put {"SSID": "<wifiname>", "PASSWORD": "<password>", "WEBHOOK_URL": "<url to something like a discord webhook>"}\
 Next something something go onto the Ochats docs and figure out how to store channels and store them in config.json.
