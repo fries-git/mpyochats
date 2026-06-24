@@ -58,8 +58,8 @@
 
         function connect() {
             username = document.getElementById("username").value || "Guest";
-
-            ws = new WebSocket("ws://localhost:8080/");
+            
+            ws = new WebSocket(`${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/`);
 
             ws.onopen = () => {
                 addMessage("[connected]");
