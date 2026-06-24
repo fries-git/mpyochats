@@ -1,0 +1,64 @@
+{
+  "channels": [
+    {
+      "name": "announcements",
+      "type": "text",
+      "description": "Important updates and news",
+      "permissions": {
+        "view": ["user"],
+        "send": ["admin"],
+        "react": ["user"]
+      }
+    },
+    {
+      "name": "general",
+      "type": "text",
+      "description": "General Chat",
+      "permissions": {
+        "view": ["user"],
+        "send": ["user"],
+        "react": ["user"]
+      }
+    },
+    {
+      "name": "random",
+      "type": "text",
+      "description": "The Bullshit <3",
+      "permissions": {
+        "view": ["user"],
+        "send": ["user"],
+        "react": ["user"]
+      }
+    },
+    {
+      "name": "tech",
+      "type": "text",
+      "description": "Coding, Hardware, Linux, Etc.",
+      "permissions": {
+        "view": ["user"],
+        "send": ["user"],
+        "react": ["user"]
+      }
+    },
+    {
+      "name": "huopa",
+      "type": "text",
+      "description": "huopa",
+      "permissions": {
+        "view": ["user"],
+        "send": ["user"],
+        "react": ["user"]
+      }
+    },
+    {
+      "name": "music",
+      "type": "text",
+      "description": "Music Discussion",
+      "permissions": {
+        "view": ["user"],
+        "send": ["user"],
+        "react": ["user"]
+      }
+    }
+  ]
+}
