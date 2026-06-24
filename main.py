@@ -8,6 +8,7 @@ port = 8080
 # Config ===
 
 from microdot import Microdot
+from microdot import send_file
 import os
 from microdot.websocket import with_websocket
 import json
@@ -69,6 +70,12 @@ if microcontroller:
 
 def make_id():
     return "%08x%08x" % (random.getrandbits(32), random.getrandbits(32))
+
+@app.route('/client')
+async def index(request):
+    if os.path.exists('test.html'):
+        return send_file('test.html')
+    return "No test.html found"
 
 class Connection:
     def __init__(self, ws):
@@ -210,7 +217,7 @@ async def status_set(ws, data):
         return
     status = data.get("status")
     for conn in connections:
-        await ws.send(json.dumps({
+        await conn.ws.send(json.dumps({
             "cmd": "status_set",
             "status": {
                 "status": status,
@@ -483,8 +490,6 @@ async def message_new(ws, data):
 
             await conn.ws.send(json.dumps(packet))
 
-            await conn.ws.send(json.dumps(packet))
-
         except Exception as e:
             print(e)
             dead.append(conn)
@@ -504,8 +509,6 @@ async def channels_get(ws, data):
     }))
 
 def get_users():
-    for c in connections:
-        pass
 
     return [
         {
