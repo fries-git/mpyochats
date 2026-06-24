@@ -223,7 +223,7 @@ async def save_message(data, conn, wsconn):
     reply_to = data.get("reply_to")
     ping = data.get("ping", True)
 
-    username = conn.username if conn and conn.username else "John Smith"
+    username = conn.username if conn and conn.username else "Unverified User"
     message_obj = {
         "id": make_id(),
         "user": username,
@@ -454,7 +454,7 @@ async def message_new(ws, data):
         }))
 
     conn = next((c for c in connections if c.ws == ws), None)
-    username = conn.username if conn and conn.username else "John Smith"
+    username = conn.username if conn and conn.username else "Unverified User"
 
     if content.startswith("!readmode "):
         if username.lower() not in adminusers:

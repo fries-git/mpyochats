@@ -102,20 +102,24 @@
             }, 500);
         }
 
-        function sendMessage() {
-            if (!ws) return;
+            function sendMessage() {
+                if (!ws) return;
 
-            const content = document.getElementById("message").value;
-            const channel = document.getElementById("channel").value;
+                const content = document.getElementById("message").value;
+                const channel = document.getElementById("channel").value;
+                const username = document.getElementById("username").value || "Guest";
 
-            ws.send(JSON.stringify({
-                cmd: "message_new",
-                channel: channel,
-                content: content
-            }));
+                ws.send(JSON.stringify({
+                    cmd: "message_new",
+                    channel: channel,
+                    user: username,
+                    content: content
+                }));
+
+                document.getElementById("message").value = "";
+            }
 
             document.getElementById("message").value = "";
-        }
 
         document.getElementById("message").addEventListener("keydown", e => {
             if (e.key === "Enter") {
