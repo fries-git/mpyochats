@@ -606,20 +606,11 @@ async def echo(request, ws):
 
     await ws.send(json.dumps(generatevalidationdata()))
 
-    # 👇 PUT EMOJIS RIGHT HERE (THIS IS THE IMPORTANT SPOT)
     await ws.send(json.dumps({
         "cmd": "emoji_list",
-        "emojis": {
-            "1": {
-                "name": "Alan",
-                "fileName": "Alan.gif"
-            },
-            "2": {
-                "name": "BagThumbsUp",
-                "fileName": "BagThumbsUp.png"
-            }
+        "emojis": get_emojis()
         }
-    }))
+    ))
 
     try:
         while True:
