@@ -157,13 +157,13 @@ def command(name):
 @command("emoji_list")
 async def emoji_list(ws, data):
     await ws.send(json.dumps({
-  "cmd": "emoji_list",
-  "emojis": {
-    "1": {
-      "name": "Alan",
-      "fileName": "Alan.gif"
-    }
-  }
+        "cmd": "emoji_list",
+        "emojis": {
+            "1": {
+                "name": "Alan",
+                "fileName": "Alan.gif"
+            }
+        }
 }))
 
 # Gets a specific emoji.
@@ -332,6 +332,11 @@ async def message_delete(ws, data):
             "val": "You are not the owner of this message, and thus cannot delete it.",
             "src": "message_delete"
         }))
+
+def get_emojis():
+    return {
+        "1": {"name": "Alan", "fileName": "Alan.gif"}
+    }
 
 # More auth stuff :sob:
 @command("auth")
@@ -598,12 +603,30 @@ async def echo(request, ws):
         "name": servername,
         "icon": servericon
     }))
+
     await ws.send(json.dumps(generatevalidationdata()))
+
+    # 👇 PUT EMOJIS RIGHT HERE (THIS IS THE IMPORTANT SPOT)
+    await ws.send(json.dumps({
+        "cmd": "emoji_list",
+        "emojis": {
+            "1": {
+                "name": "Alan",
+                "fileName": "Alan.gif"
+            },
+            "2": {
+                "name": "BagThumbsUp",
+                "fileName": "BagThumbsUp.png"
+            }
+        }
+    }))
+
     try:
         while True:
             message = await ws.receive()
             if message is None:
                 break
+
             try:
                 data = json.loads(message)
             except json.JSONDecodeError:
