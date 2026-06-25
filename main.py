@@ -15,6 +15,7 @@ from microdot.websocket import with_websocket
 import json
 import random
 import time
+
 try:
     import urequests as requests
     microcontroller = True
@@ -56,14 +57,20 @@ if microcontroller:
 
 # Generates a random ID; I can probably simplify this.
 def make_id():
-    return "%08x%08x" % (random.getrandbits(32), random.getrandbits(32))
+    return f"{random.getrandbits(64):016x}"
 
-# Litte crappy demo client I'm going to replace.
+# Litte crappy ai generated demo client I'm going to replace.
 @app.route('/client')
 async def index(request):
     if os.path.exists('test.html'):
         return send_file('test.html')
     return "No test.html found"
+
+@app.route('/goobus')
+async def index(request):
+    if os.path.exists('goobus.html'):
+        return send_file('goobus.html')
+    return "No goobus noooooo why goobus wahhhhhhhhh"
 
 # Webpage for emojis, if you go to ip/emojis/1 it pulls emoji 1 which is Alan.gif, and this is really undynamic.
 @app.route('/emojis/<emoji_id>')
@@ -101,6 +108,22 @@ def generatevalidationdata():
             "validator_key": "mpyochats"
         }
     }
+
+def get_emojis():
+    emojis = {}
+    emoji_id = 1
+
+    for filename in sorted(os.listdir("emojis")):
+        if "." in filename:  # basic safety check
+            name = filename.rsplit(".", 1)[0]
+            emojis[str(emoji_id)] = {
+                "name": name,
+                "fileName": filename
+            }
+
+            emoji_id += 1
+
+    return emojis
 
 # This function checks the number of messages in a channel's JSON file and trims it if it exceeds the maximum allowed messages. This is to ensure that ESP32's don't run out of memory or have issues procesing.
 async def checkandtrim(channel, ws):
@@ -159,24 +182,26 @@ async def emoji_list(ws, data):
     await ws.send(json.dumps({
         "cmd": "emoji_list",
         "emojis": {
-            "1": {
-                "name": "Alan",
-                "fileName": "Alan.gif"
-            }
+            get_emojis()
         }
 }))
 
 # Gets a specific emoji.
 @command("emoji_get")
 async def emoji_get(ws, data):
-    emoji_id = data.get("id")
+    emoji = get_emojis().get(str(data.get("id")))
+
     await ws.send(json.dumps({
         "cmd": "emoji_get",
-        "id": emoji_id,
-        "name": "Alan",
-        "fileName": "Alan.gif"
-    }
-))
+        "id": data.get("id"),
+        **(
+            {"error": "Emoji not found"} if not emoji
+            else {
+                "name": emoji["name"],
+                "fileName": emoji["fileName"]
+            }
+        )
+    }))
 
 # Stuff for autogenerating channels.
 def channelbreak(mode=1):
@@ -333,10 +358,7 @@ async def message_delete(ws, data):
             "src": "message_delete"
         }))
 
-def get_emojis():
-    return {
-        "1": {"name": "Alan", "fileName": "Alan.gif"}
-    }
+
 
 # More auth stuff :sob:
 @command("auth")
