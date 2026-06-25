@@ -76,7 +76,7 @@ async def index(request):
 @app.route('/emojis/<emoji_id>')
 async def get_emoji(request, emoji_id):
     EMOJIS = {
-        "1": "Alan.gif"
+        emoji_get()
     }
     filename = EMOJIS.get(emoji_id)
 
