@@ -66,29 +66,18 @@ async def index(request):
         return send_file('test.html')
     return "No test.html found"
 
-def get_emojis(mode):
+def get_emojis():
     emojis = {}
     emoji_id = 1
-    if mode == "http":
-        for filename in sorted(os.listdir("emojis")):
-            if "." in filename:  # basic safety check
-                name = filename.rsplit(".", 1)[0]
-                emojis[str(emoji_id)] = {
-                    "name": name,
-                    "fileName": filename
-                }
+    for filename in sorted(os.listdir("emojis")):
+        if "." in filename:  # basic safety check
+            name = filename.rsplit(".", 1)[0]
+            emojis[str(emoji_id)] = {
+                "name": name,
+                "fileName": filename
+            }
 
-                emoji_id += 1
-
-    else:
-        for filename in sorted(os.listdir("emojis")):
-            if "." in filename:  # basic safety check
-                name = filename.rsplit(".", 1)[0]
-                emojis[str(emoji_id)] = {
-                    str(emoji_id): filename
-                }
-
-                emoji_id += 1
+            emoji_id += 1
 
     return emojis
 
@@ -101,7 +90,7 @@ async def index(request):
 # Webpage for emojis, if you go to ip/emojis/1 it pulls emoji 1 which is Alan.gif, and this is really undynamic.
 @app.route('/emojis/<emoji_id>')
 async def get_emoji(request, emoji_id):
-    emojis = get_emojis("http")
+    emojis = get_emojis()
 
     emoji = emojis.get(str(emoji_id))
     if not emoji:
