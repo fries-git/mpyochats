@@ -101,15 +101,14 @@ async def index(request):
 # Webpage for emojis, if you go to ip/emojis/1 it pulls emoji 1 which is Alan.gif, and this is really undynamic.
 @app.route('/emojis/<emoji_id>')
 async def get_emoji(request, emoji_id):
-    EMOJIS = {
-        get_emojis("http")
-    }
-    filename = EMOJIS.get(emoji_id)
+    emojis = get_emojis("http")
 
-    if not filename:
+    emoji = emojis.get(str(emoji_id))
+    if not emoji:
         return "Emoji not found", 404
 
-    path = f"emojis/{filename}"
+    path = f"emojis/{emoji['fileName']}"
+
     if not os.path.exists(path):
         return "File missing", 404
 
@@ -134,22 +133,6 @@ def generatevalidationdata():
             "validator_key": "mpyochats"
         }
     }
-
-def get_emojis():
-    emojis = {}
-    emoji_id = 1
-
-    for filename in sorted(os.listdir("emojis")):
-        if "." in filename:  # basic safety check
-            name = filename.rsplit(".", 1)[0]
-            emojis[str(emoji_id)] = {
-                "name": name,
-                "fileName": filename
-            }
-
-            emoji_id += 1
-
-    return emojis
 
 # This function checks the number of messages in a channel's JSON file and trims it if it exceeds the maximum allowed messages. This is to ensure that ESP32's don't run out of memory or have issues procesing.
 async def checkandtrim(channel, ws):
@@ -207,9 +190,7 @@ def command(name):
 async def emoji_list(ws, data):
     await ws.send(json.dumps({
         "cmd": "emoji_list",
-        "emojis": {
-            get_emojis()
-        }
+        "emojis": get_emojis()
 }))
 
 # Gets a specific emoji.
