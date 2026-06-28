@@ -57,7 +57,7 @@ if microcontroller:
 
 # Generates a random ID; I can probably simplify this.
 def make_id():
-    return f"{random.getrandbits(64):016x}"
+    return f"{random.getrandbits(32):08x}"
 
 # Litte crappy ai generated demo client I'm going to replace.
 @app.route('/client')
@@ -81,13 +81,7 @@ def get_emojis():
 
     return emojis
 
-@app.route('/goobus')
-async def index(request):
-    if os.path.exists('goobus.html'):
-        return send_file('goobus.html')
-    return "No goobus noooooo why goobus wahhhhhhhhh"
-
-# Webpage for emojis, if you go to ip/emojis/1 it pulls emoji 1 which is Alan.gif, and this is really undynamic.
+# Webpage for emojis, if you go to ip/emojis/1 it pulls emoji 1 which is Alan.gif, finally made it dynamic.
 @app.route('/emojis/<emoji_id>')
 async def get_emoji(request, emoji_id):
     emojis = get_emojis()
@@ -119,7 +113,8 @@ def generatevalidationdata():
             "server": "mpyochats",
             "limits": {},
             "version": "1.0.1",
-            "validator_key": "mpyochats"
+            "validator_key": "mpyochats",
+            "post_content": maxlen
         }
     }
 
@@ -463,6 +458,11 @@ async def users_online(ws, data):
 @command("typing")
 async def typing(ws, data):
     pass
+
+# Basic ping command, no auth needed or anything, just anytime server recieves this send back info.
+@command("ping")
+async def ping(ws, data):
+    await ws.send(json.dumps({"cmd": "pong", "val": "pong"}))
 
 # Handles new messages by doing things like, checking channel, checking readonly mode, which is sort of like a timeout on Discord, and then saving the message to storage and broadcasting it to all connected clients.
 @command("message_new")
