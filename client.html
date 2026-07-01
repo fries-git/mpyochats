@@ -682,11 +682,14 @@
 
   function renderContent(text){
     let html = escapeHtml(text);
-    // originChats:<name>//<hostport>/<id> -> inline emoji image
-    html = html.replace(/originChats:([^\/\s]+)\/\/([^\/\s]+)\/([^\s]+)/g, function(_, name, hp, id){
+    // originChats:emoji//<hostport>/<id> -> inline emoji image. The "emoji" segment
+    // is a literal tag (not a name) - id is what we actually look up.
+    html = html.replace(/originChats:[^\/\s]+\/\/([^\/\s]+)\/([^\s]+)/g, function(_, hp, id){
       const proto = httpBase.startsWith('https') ? 'https://' : 'http://';
       const src = proto + hp + '/emojis/' + encodeURIComponent(id);
-      return '<img class="emoji-inline" src="' + src + '" alt=":' + escapeHtml(name) + ':" title=":' + escapeHtml(name) + ':">';
+      const known = emojis[id];
+      const label = known ? known.name : ('emoji ' + id);
+      return '<img class="emoji-inline" src="' + src + '" alt=":' + escapeHtml(label) + ':" title=":' + escapeHtml(label) + ':">';
     });
     // bare urls -> links
     html = html.replace(/(https?:\/\/[^\s<]+)/g, function(url){
@@ -833,10 +836,19 @@
   };
 
   // ---------- Channel / user lists ----------
+  function normalizeChannelName(ch){
+    if (typeof ch === 'string') return ch;
+    if (ch && typeof ch === 'object') {
+      return ch.name || ch.channel || ch.id || ch.title || Object.values(ch)[0] || 'general';
+    }
+    return String(ch);
+  }
+
   function renderChannelList(){
     channelList.innerHTML = '';
-    if (channels.length === 0) channels = ['general'];
-    channels.forEach(ch => {
+    let names = channels.map(normalizeChannelName).filter(Boolean);
+    if (names.length === 0) names = ['general'];
+    names.forEach(ch => {
       const li = document.createElement('li');
       li.className = 'channel-item' + (ch === currentChannel ? ' active' : '');
       li.textContent = ch;
@@ -892,7 +904,7 @@
   }
 
   function insertEmojiToken(id, name){
-    const token = 'originChats:' + name + '//' + hostport + '/' + id;
+    const token = 'originChats:emoji//' + hostport + '/' + id;
     const start = msgInput.selectionStart || msgInput.value.length;
     const end = msgInput.selectionEnd || msgInput.value.length;
     msgInput.value = msgInput.value.slice(0, start) + token + ' ' + msgInput.value.slice(end);
