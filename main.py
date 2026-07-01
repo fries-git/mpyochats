@@ -317,7 +317,7 @@ async def message_delete(ws, data):
     if message is None:
         return
 
-    if userdeleting == message.get("user"):
+    if userdeleting == message.get("user") or userdeleting in adminusers:
         tempname = f"{channel}.tmp"
         with open(f"{channel}.json", "r") as src:
             with open(tempname, "w") as dst:
