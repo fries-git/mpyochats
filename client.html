@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SaltyChats // client</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b100e;
+    --panel:#121a17;
+    --panel-2:#161f1b;
+    --border:#233029;
+    --text:#e6e9e2;
+    --muted:#7d8c81;
+    --amber:#f2a154;
+    --amber-dim:#8a5f34;
+    --teal:#5fb8a8;
+    --rust:#c1543a;
+    --mono:'IBM Plex Mono', monospace;
+    --sans:'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top left, rgba(95,184,168,0.05), transparent 50%),
+      radial-gradient(ellipse at bottom right, rgba(242,161,84,0.05), transparent 50%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    overflow:hidden;
+  }
+  ::selection{background:var(--amber-dim);color:#fff;}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--amber-dim);}
+
+  /* ---------- Connect screen ---------- */
+  #connect-screen{
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .connect-card{
+    width:100%;
+    max-width:420px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:32px;
+    position:relative;
+    overflow:hidden;
+  }
+  .connect-card::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--amber), transparent);
+    animation:scan 3.2s linear infinite;
+  }
+  @keyframes scan{
+    0%{transform:translateX(-100%);}
+    100%{transform:translateX(100%);}
+  }
+  .connect-eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.14em;
+    color:var(--amber);
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:6px;
+  }
+  .connect-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 8px var(--teal);}
+  .connect-card h1{
+    font-family:var(--mono);
+    font-size:22px;
+    margin:0 0 4px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  .connect-card p.sub{
+    color:var(--muted);
+    font-size:13px;
+    margin:0 0 24px;
+    line-height:1.5;
+  }
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block;
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .field input{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:11px 12px;
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:14px;
+    outline:none;
+    transition:border-color .15s;
+  }
+  .field input:focus{border-color:var(--amber);}
+  .field .hint{font-size:11px;color:var(--muted);margin-top:5px;}
+  .btn{
+    font-family:var(--mono);
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:0.03em;
+    border:none;
+    border-radius:6px;
+    padding:12px 18px;
+    cursor:pointer;
+    transition:filter .15s, transform .1s;
+  }
+  .btn:active{transform:scale(0.98);}
+  .btn-primary{background:var(--amber);color:#1a1206;width:100%;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-primary:disabled{opacity:0.5;cursor:not-allowed;}
+  #connect-error{
+    margin-top:14px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--rust);
+    display:none;
+  }
+
+  /* ---------- Main app ---------- */
+  #main-app{
+    display:grid;
+    grid-template-columns:240px 1fr;
+    height:100%;
+  }
+  .sidebar{
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+  }
+  .server-header{
+    padding:16px;
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .server-header img{
+    width:34px;height:34px;border-radius:8px;
+    object-fit:cover;
+    background:var(--panel-2);
+    flex-shrink:0;
+  }
+  .server-header .meta{min-width:0;}
+  .server-header .name{
+    font-weight:700;font-size:14px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .server-header .status-line{
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--muted);
+    display:flex;align-items:center;gap:5px;
+    margin-top:2px;
+  }
+  .status-pulse{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);animation:pulse 2s ease-in-out infinite;}
+  .status-pulse.off{background:var(--rust);box-shadow:0 0 6px var(--rust);animation:none;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+
+  .sidebar-section{padding:14px 14px 6px;}
+  .sidebar-section h3{
+    font-family:var(--mono);
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.1em;
+    color:var(--muted);
+    margin:0 0 8px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .channel-list, .user-list{list-style:none;margin:0;padding:0;max-height:150px;overflow-y:auto;}
+  .channel-item, .user-item{
+    font-family:var(--mono);
+    font-size:12.5px;
+    padding:6px 8px;
+    border-radius:5px;
+    cursor:pointer;
+    color:var(--muted);
+    display:flex;align-items:center;gap:6px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .channel-item:hover{background:var(--panel-2);color:var(--text);}
+  .channel-item.active{background:var(--panel-2);color:var(--amber);}
+  .channel-item::before{content:"#";opacity:0.5;}
+  .user-item .udot{width:6px;height:6px;border-radius:50%;background:var(--teal);flex-shrink:0;}
+  .user-item{color:var(--text);}
+  .jump-row{display:flex;gap:6px;margin-top:8px;}
+  .jump-row input{
+    flex:1;background:var(--panel-2);border:1px solid var(--border);
+    border-radius:5px;color:var(--text);font-family:var(--mono);font-size:11px;
+    padding:6px 8px;outline:none;
+  }
+  .jump-row input:focus{border-color:var(--amber);}
+  .jump-row button{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--muted);
+    border-radius:5px;padding:0 9px;cursor:pointer;font-family:var(--mono);font-size:13px;
+  }
+  .jump-row button:hover{color:var(--amber);border-color:var(--amber-dim);}
+
+  .sidebar-footer{
+    margin-top:auto;
+    padding:12px 14px;
+    border-top:1px solid var(--border);
+    font-family:var(--mono);
+    font-size:11px;
+  }
+  .me-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;}
+  .me-row .me-name{color:var(--amber);font-weight:600;}
+  .me-row button{
+    background:none;border:none;color:var(--muted);cursor:pointer;font-family:var(--mono);font-size:10px;
+    text-decoration:underline;padding:0;
+  }
+  .me-row button:hover{color:var(--rust);}
+  .status-input-row{display:flex;gap:5px;}
+  .status-input-row input{
+    flex:1;background:var(--panel-2);border:1px solid var(--border);border-radius:5px;
+    color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 7px;outline:none;
+  }
+  .status-input-row button{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--teal);
+    border-radius:5px;padding:0 8px;cursor:pointer;font-size:11px;
+  }
+  .ping-line{color:var(--muted);margin-top:8px;font-size:10px;}
+
+  /* ---------- Chat pane ---------- */
+  .chat{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    position:relative;
+  }
+  .chat-header{
+    padding:14px 20px;
+    border-bottom:1px solid var(--border);
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--panel);
+  }
+  .chat-header .chan-title{
+    font-family:var(--mono);font-weight:600;font-size:15px;
+    display:flex;align-items:center;gap:6px;
+  }
+  .chat-header .chan-title::before{content:"#";color:var(--amber);}
+  .chat-header .actions{display:flex;gap:8px;}
+  .icon-btn{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--muted);
+    width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;
+    display:flex;align-items:center;justify-content:center;
+    transition:color .15s, border-color .15s;
+  }
+  .icon-btn:hover{color:var(--amber);border-color:var(--amber-dim);}
+
+  .messages{
+    flex:1;
+    overflow-y:auto;
+    padding:16px 20px 8px;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .load-older{
+    align-self:center;
+    background:var(--panel-2);border:1px solid var(--border);color:var(--muted);
+    font-family:var(--mono);font-size:11px;padding:6px 14px;border-radius:20px;cursor:pointer;
+    margin-bottom:10px;
+  }
+  .load-older:hover{color:var(--amber);}
+
+  .msg-row{
+    display:grid;
+    grid-template-columns:64px 1fr;
+    gap:12px;
+    padding:5px 8px;
+    border-radius:6px;
+    animation:fadein .25s ease;
+    position:relative;
+  }
+  @keyframes fadein{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:translateY(0);}}
+  .msg-row:hover{background:var(--panel-2);}
+  .msg-row:hover .msg-actions{opacity:1;}
+  .msg-packet{
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--muted);
+    padding-top:3px;
+    text-align:right;
+    user-select:none;
+  }
+  .msg-packet .id{color:var(--amber-dim);display:block;}
+  .msg-body .top-line{display:flex;align-items:baseline;gap:8px;margin-bottom:2px;}
+  .msg-body .uname{font-weight:700;font-size:13.5px;color:var(--teal);}
+  .msg-body .uname.system{color:var(--amber);}
+  .msg-body .tstamp{font-family:var(--mono);font-size:10px;color:var(--muted);}
+  .msg-body .content{font-size:14px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap;}
+  .msg-body .content a{color:var(--teal);}
+  .msg-body .reply-ref{
+    font-size:11px;color:var(--muted);border-left:2px solid var(--border);
+    padding-left:8px;margin-bottom:3px;font-family:var(--mono);
+  }
+  .emoji-inline{height:22px;vertical-align:middle;margin:0 1px;}
+  .msg-actions{
+    position:absolute;right:8px;top:2px;
+    display:flex;gap:4px;opacity:0;transition:opacity .12s;
+  }
+  .msg-actions button{
+    background:var(--panel);border:1px solid var(--border);color:var(--muted);
+    font-size:10px;font-family:var(--mono);padding:2px 6px;border-radius:4px;cursor:pointer;
+  }
+  .msg-actions button:hover{color:var(--rust);border-color:var(--rust);}
+  .sys-msg{
+    align-self:center;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    padding:4px 12px;
+    background:var(--panel-2);
+    border-radius:12px;
+    margin:6px auto;
+  }
+
+  .reply-banner{
+    display:none;
+    padding:8px 20px;
+    background:var(--panel-2);
+    border-top:1px solid var(--border);
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    align-items:center;
+    justify-content:space-between;
+  }
+  .reply-banner button{background:none;border:none;color:var(--rust);cursor:pointer;font-size:14px;}
+
+  .composer{
+    border-top:1px solid var(--border);
+    background:var(--panel);
+    padding:12px 20px 16px;
+  }
+  .composer-inner{
+    display:flex;
+    align-items:flex-end;
+    gap:8px;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:8px 8px 8px 14px;
+  }
+  .composer-inner:focus-within{border-color:var(--amber);}
+  .prompt-caret{font-family:var(--mono);color:var(--amber);font-size:14px;padding-bottom:9px;user-select:none;}
+  #msg-input{
+    flex:1;
+    background:none;border:none;outline:none;resize:none;
+    color:var(--text);font-family:var(--sans);font-size:14px;
+    max-height:120px;padding:6px 0;line-height:1.4;
+  }
+  .composer-btn{
+    background:none;border:none;color:var(--muted);cursor:pointer;
+    width:34px;height:34px;border-radius:6px;font-size:16px;flex-shrink:0;
+  }
+  .composer-btn:hover{color:var(--amber);background:var(--panel);}
+  .send-btn{background:var(--amber);color:#1a1206;font-family:var(--mono);font-weight:700;
+    border:none;border-radius:7px;padding:0 16px;height:34px;cursor:pointer;flex-shrink:0;}
+  .send-btn:hover{filter:brightness(1.08);}
+  .send-btn:disabled{opacity:0.4;cursor:not-allowed;}
+  .composer-meta{
+    display:flex;justify-content:space-between;
+    font-family:var(--mono);font-size:10px;color:var(--muted);
+    padding:5px 4px 0;
+  }
+  .composer-meta .len.over{color:var(--rust);}
+
+  /* Emoji picker */
+  .emoji-picker{
+    position:absolute;
+    bottom:78px; left:20px;
+    width:280px; max-height:260px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    box-shadow:0 12px 30px rgba(0,0,0,0.5);
+    display:none;
+    flex-direction:column;
+    z-index:20;
+  }
+  .emoji-picker.open{display:flex;}
+  .emoji-picker-head{
+    padding:8px 10px;border-bottom:1px solid var(--border);
+    font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;
+  }
+  .emoji-grid{
+    display:grid;grid-template-columns:repeat(5,1fr);gap:6px;
+    padding:10px;overflow-y:auto;
+  }
+  .emoji-grid button{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:6px;
+    cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;
+  }
+  .emoji-grid button:hover{border-color:var(--amber);}
+  .emoji-grid img{width:100%;height:32px;object-fit:contain;}
+  .emoji-empty{padding:16px;font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;}
+
+  /* Toasts */
+  #toast-stack{
+    position:fixed;bottom:16px;right:16px;
+    display:flex;flex-direction:column;gap:8px;z-index:100;
+  }
+  .toast{
+    font-family:var(--mono);font-size:12px;
+    background:var(--panel);border:1px solid var(--border);
+    border-left:3px solid var(--teal);
+    padding:10px 14px;border-radius:6px;
+    max-width:320px;
+    animation:fadein .2s ease;
+    box-shadow:0 6px 20px rgba(0,0,0,0.4);
+  }
+  .toast.error{border-left-color:var(--rust);}
+  .toast.info{border-left-color:var(--amber);}
+
+  /* Modal (poll) */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(5,8,7,0.7);
+    display:none;align-items:center;justify-content:center;z-index:50;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    width:100%;max-width:380px;padding:22px;
+  }
+  .modal h3{font-family:var(--mono);margin:0 0 4px;font-size:15px;}
+  .modal p.warn{font-size:11px;color:var(--rust);font-family:var(--mono);line-height:1.5;margin:6px 0 16px;}
+  .modal .field textarea{
+    width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;
+    color:var(--text);font-family:var(--sans);font-size:13px;padding:9px;resize:vertical;min-height:60px;outline:none;
+  }
+  .modal .row{display:flex;gap:8px;margin-top:16px;}
+  .modal .row button{flex:1;}
+  .btn-ghost{background:var(--panel-2);color:var(--muted);border:1px solid var(--border);}
+  .btn-ghost:hover{color:var(--text);}
+  .btn-danger{background:var(--rust);color:#fff;}
+
+  [hidden]{display:none !important;}
+
+  @media (max-width: 720px){
+    #main-app{grid-template-columns:1fr;}
+    .sidebar{position:fixed;left:0;top:0;bottom:0;width:240px;z-index:30;transform:translateX(-100%);transition:transform .2s;}
+    .sidebar.open{transform:translateX(0);}
+  }
+</style>
+</head>
+<body>
+
+<div id="connect-screen">
+  <div class="connect-card">
+    <div class="connect-eyebrow"><span class="dot"></span>MPYOCHATS PROTOCOL</div>
+    <h1>SaltyChats client</h1>
+    <p class="sub">Connect to a mpyochats server. No account needed — just pick a name, it travels with your messages.</p>
+
+    <div class="field">
+      <label for="addr-input">Server address</label>
+      <input id="addr-input" type="text" placeholder="192.168.1.42:8080" autocomplete="off">
+      <div class="hint">Host:port, or a full ws:// / wss:// url. No trailing slash.</div>
+    </div>
+    <div class="field">
+      <label for="name-input">Your name</label>
+      <input id="name-input" type="text" placeholder="fries" autocomplete="off" maxlength="32">
+    </div>
+    <button class="btn btn-primary" id="connect-btn">Connect</button>
+    <div id="connect-error"></div>
+  </div>
+</div>
+
+<div id="main-app" hidden>
+  <aside class="sidebar" id="sidebar">
+    <div class="server-header">
+      <img id="server-icon" src="" alt="">
+      <div class="meta">
+        <div class="name" id="server-name">connecting…</div>
+        <div class="status-line"><span class="status-pulse" id="status-pulse"></span><span id="status-text">connecting</span></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Channels</h3>
+      <ul class="channel-list" id="channel-list"></ul>
+      <div class="jump-row">
+        <input id="jump-input" type="text" placeholder="jump to #channel">
+        <button id="jump-btn">Go</button>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Online <span id="online-count">0</span></h3>
+      <ul class="user-list" id="user-list"></ul>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="me-row">
+        <span>you are <span class="me-name" id="me-name"></span></span>
+        <button id="change-name-btn">change</button>
+      </div>
+      <div class="status-input-row">
+        <input id="status-input" type="text" placeholder="set status…" maxlength="60">
+        <button id="status-btn">set</button>
+      </div>
+      <div class="ping-line" id="ping-line">latency: —</div>
+    </div>
+  </aside>
+
+  <main class="chat">
+    <div class="chat-header">
+      <div class="chan-title" id="chan-title">general</div>
+      <div class="actions">
+        <button class="icon-btn" id="poll-btn" title="Create poll">☰</button>
+        <button class="icon-btn" id="reconnect-btn" title="Reconnect">⟳</button>
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <button class="load-older" id="load-older" hidden>load older messages</button>
+    </div>
+
+    <div class="reply-banner" id="reply-banner">
+      <span id="reply-banner-text"></span>
+      <button id="reply-cancel">✕</button>
+    </div>
+
+    <div class="emoji-picker" id="emoji-picker">
+      <div class="emoji-picker-head">emojis</div>
+      <div class="emoji-grid" id="emoji-grid"></div>
+    </div>
+
+    <div class="composer">
+      <div class="composer-inner">
+        <span class="prompt-caret">&gt;</span>
+        <textarea id="msg-input" rows="1" placeholder="Message #general"></textarea>
+        <button class="composer-btn" id="emoji-toggle-btn" title="Emojis">☺</button>
+        <button class="send-btn" id="send-btn">send</button>
+      </div>
+      <div class="composer-meta">
+        <span id="composer-hint">enter to send · shift+enter for newline</span>
+        <span class="len" id="len-counter">0/500</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="poll-overlay">
+  <div class="modal">
+    <h3>Create a poll</h3>
+    <p class="warn">Heads up: this server saves polls by overwriting the channel's message file, which may wipe this channel's history. Use with care.</p>
+    <div class="field">
+      <label>Question</label>
+      <input id="poll-question" type="text" placeholder="What's for lunch?">
+    </div>
+    <div class="field">
+      <label>Options (one per line)</label>
+      <textarea id="poll-options" placeholder="Pizza&#10;Tacos&#10;Ramen"></textarea>
+    </div>
+    <div class="row">
+      <button class="btn btn-ghost" id="poll-cancel">Cancel</button>
+      <button class="btn btn-danger" id="poll-submit">Create anyway</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-stack"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- State ----------
+  let ws = null;
+  let httpBase = "";
+  let hostport = "";
+  let connected = false;
+  let username = "";
+  let currentChannel = "general";
+  let maxLen = 500;
+  let channels = [];
+  let onlineUsers = [];
+  let emojis = {};
+  let messageCache = {};     // channel -> [messages]
+  let messageIndex = {};     // channel -> {id: message}
+  let replyingTo = null;
+  let pingSentAt = 0;
+  let pingInterval = null;
+  let lastAddr = "";
+
+  // ---------- DOM refs ----------
+  const $ = (id) => document.getElementById(id);
+  const connectScreen = $("connect-screen");
+  const mainApp = $("main-app");
+  const addrInput = $("addr-input");
+  const nameInput = $("name-input");
+  const connectBtn = $("connect-btn");
+  const connectError = $("connect-error");
+
+  const serverIcon = $("server-icon");
+  const serverName = $("server-name");
+  const statusPulse = $("status-pulse");
+  const statusText = $("status-text");
+  const channelList = $("channel-list");
+  const jumpInput = $("jump-input");
+  const jumpBtn = $("jump-btn");
+  const userList = $("user-list");
+  const onlineCount = $("online-count");
+  const meName = $("me-name");
+  const changeNameBtn = $("change-name-btn");
+  const statusInput = $("status-input");
+  const statusBtn = $("status-btn");
+  const pingLine = $("ping-line");
+
+  const chanTitle = $("chan-title");
+  const messagesEl = $("messages");
+  const loadOlderBtn = $("load-older");
+  const replyBanner = $("reply-banner");
+  const replyBannerText = $("reply-banner-text");
+  const replyCancel = $("reply-cancel");
+  const emojiPicker = $("emoji-picker");
+  const emojiGrid = $("emoji-grid");
+  const emojiToggleBtn = $("emoji-toggle-btn");
+  const msgInput = $("msg-input");
+  const sendBtn = $("send-btn");
+  const lenCounter = $("len-counter");
+  const pollBtn = $("poll-btn");
+  const reconnectBtn = $("reconnect-btn");
+
+  const pollOverlay = $("poll-overlay");
+  const pollQuestion = $("poll-question");
+  const pollOptions = $("poll-options");
+  const pollCancel = $("poll-cancel");
+  const pollSubmit = $("poll-submit");
+
+  const toastStack = $("toast-stack");
+
+  // ---------- Helpers ----------
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  function makeLocalId(){
+    return Math.random().toString(16).slice(2, 10);
+  }
+
+  function toast(msg, type){
+    const el = document.createElement('div');
+    el.className = 'toast' + (type ? ' ' + type : '');
+    el.textContent = msg;
+    toastStack.appendChild(el);
+    setTimeout(() => { el.remove(); }, 5000);
+  }
+
+  function setConnState(state, label){
+    statusText.textContent = label;
+    statusPulse.classList.toggle('off', state !== 'ok');
+  }
+
+  function renderContent(text){
+    let html = escapeHtml(text);
+    // originChats:<name>//<hostport>/<id> -> inline emoji image
+    html = html.replace(/originChats:([^\/\s]+)\/\/([^\/\s]+)\/([^\s]+)/g, function(_, name, hp, id){
+      const proto = httpBase.startsWith('https') ? 'https://' : 'http://';
+      const src = proto + hp + '/emojis/' + encodeURIComponent(id);
+      return '<img class="emoji-inline" src="' + src + '" alt=":' + escapeHtml(name) + ':" title=":' + escapeHtml(name) + ':">';
+    });
+    // bare urls -> links
+    html = html.replace(/(https?:\/\/[^\s<]+)/g, function(url){
+      // don't linkify inside an already-built img tag's src, this runs on remaining text only
+      return '<a href="' + url + '" target="_blank" rel="noopener">' + url + '</a>';
+    });
+    html = html.replace(/\n/g, '<br>');
+    return html;
+  }
+
+  function parseSender(content, fallbackUser){
+    const m = /^\(([^)]{1,64})\)\s-\s([\s\S]*)$/.exec(content || "");
+    if (m) return { name: m[1], text: m[2] };
+    return { name: fallbackUser || "Unverified User", text: content || "" };
+  }
+
+  function fmtTime(ts){
+    if (!ts) return "";
+    const d = new Date(ts * 1000);
+    return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  }
+
+  // ---------- Rendering ----------
+  function ensureCache(channel){
+    if (!messageCache[channel]) messageCache[channel] = [];
+    if (!messageIndex[channel]) messageIndex[channel] = {};
+  }
+
+  function clearMessagesUI(){
+    [...messagesEl.querySelectorAll('.msg-row,.sys-msg')].forEach(n => n.remove());
+  }
+
+  function renderChannelFromCache(channel){
+    clearMessagesUI();
+    ensureCache(channel);
+    messageCache[channel].forEach(m => appendMessageDOM(m, channel, false));
+    scrollToBottom();
+  }
+
+  function scrollToBottom(){
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function appendMessageDOM(msg, channel, doScroll){
+    if (channel !== currentChannel) return;
+    const sender = parseSender(msg.content, msg.user);
+    const isMine = sender.name === username;
+
+    const row = document.createElement('div');
+    row.className = 'msg-row';
+    row.dataset.id = msg.id || "";
+
+    const packet = document.createElement('div');
+    packet.className = 'msg-packet';
+    packet.innerHTML = (msg.id ? '<span class="id">#' + escapeHtml(String(msg.id).slice(0,6)) + '</span>' : '') + fmtTime(msg.timestamp);
+    row.appendChild(packet);
+
+    const body = document.createElement('div');
+    body.className = 'msg-body';
+
+    if (msg.reply_to && msg.reply_to.id) {
+      const ref = document.createElement('div');
+      ref.className = 'reply-ref';
+      const original = (messageIndex[channel] || {})[msg.reply_to.id];
+      if (original) {
+        const os = parseSender(original.content, original.user);
+        ref.textContent = '↪ replying to ' + os.name + ': ' + os.text.slice(0, 60);
+      } else {
+        ref.textContent = '↪ replying to a message';
+      }
+      body.appendChild(ref);
+    }
+
+    const top = document.createElement('div');
+    top.className = 'top-line';
+    const uname = document.createElement('span');
+    uname.className = 'uname' + (msg.user === 'server' ? ' system' : '');
+    uname.textContent = sender.name;
+    top.appendChild(uname);
+    body.appendChild(top);
+
+    const content = document.createElement('div');
+    content.className = 'content';
+    content.innerHTML = renderContent(sender.text);
+    body.appendChild(content);
+
+    row.appendChild(body);
+
+    if (isMine && msg.id) {
+      const actions = document.createElement('div');
+      actions.className = 'msg-actions';
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'delete';
+      delBtn.onclick = () => deleteMessage(channel, msg.id);
+      actions.appendChild(delBtn);
+      const replyBtn = document.createElement('button');
+      replyBtn.textContent = 'reply';
+      replyBtn.onclick = () => startReply(msg, sender.name);
+      actions.appendChild(replyBtn);
+      row.appendChild(actions);
+    } else if (msg.id) {
+      const actions = document.createElement('div');
+      actions.className = 'msg-actions';
+      const replyBtn = document.createElement('button');
+      replyBtn.textContent = 'reply';
+      replyBtn.onclick = () => startReply(msg, sender.name);
+      actions.appendChild(replyBtn);
+      row.appendChild(actions);
+    }
+
+    messagesEl.appendChild(row);
+    if (doScroll !== false) scrollToBottom();
+  }
+
+  function removeMessageDOM(channel, id){
+    if (channel === currentChannel) {
+      const row = messagesEl.querySelector('.msg-row[data-id="' + CSS.escape(String(id)) + '"]');
+      if (row) row.remove();
+    }
+    if (messageCache[channel]) {
+      messageCache[channel] = messageCache[channel].filter(m => m.id !== id);
+    }
+    if (messageIndex[channel]) delete messageIndex[channel][id];
+  }
+
+  function sysMsg(text){
+    const el = document.createElement('div');
+    el.className = 'sys-msg';
+    el.textContent = text;
+    messagesEl.appendChild(el);
+    scrollToBottom();
+  }
+
+  function startReply(msg, name){
+    replyingTo = msg;
+    replyBanner.style.display = 'flex';
+    const sender = parseSender(msg.content, msg.user);
+    replyBannerText.textContent = 'Replying to ' + name + ': ' + sender.text.slice(0, 50);
+    msgInput.focus();
+  }
+  replyCancel.onclick = () => {
+    replyingTo = null;
+    replyBanner.style.display = 'none';
+  };
+
+  // ---------- Channel / user lists ----------
+  function renderChannelList(){
+    channelList.innerHTML = '';
+    if (channels.length === 0) channels = ['general'];
+    channels.forEach(ch => {
+      const li = document.createElement('li');
+      li.className = 'channel-item' + (ch === currentChannel ? ' active' : '');
+      li.textContent = ch;
+      li.onclick = () => switchChannel(ch);
+      channelList.appendChild(li);
+    });
+  }
+
+  function renderUserList(){
+    userList.innerHTML = '';
+    onlineCount.textContent = onlineUsers.length;
+    onlineUsers.forEach(u => {
+      const li = document.createElement('li');
+      li.className = 'user-item';
+      li.innerHTML = '<span class="udot"></span>' + escapeHtml(u.username || 'anon');
+      userList.appendChild(li);
+    });
+  }
+
+  function switchChannel(ch){
+    currentChannel = ch;
+    chanTitle.textContent = ch;
+    msgInput.placeholder = 'Message #' + ch;
+    renderChannelList();
+    ensureCache(ch);
+    if (messageCache[ch].length === 0) {
+      requestMessages(ch);
+    } else {
+      renderChannelFromCache(ch);
+    }
+  }
+
+  // ---------- Emoji picker ----------
+  function renderEmojiGrid(){
+    emojiGrid.innerHTML = '';
+    const ids = Object.keys(emojis);
+    if (ids.length === 0) {
+      emojiGrid.innerHTML = '<div class="emoji-empty">no emojis on this server</div>';
+      return;
+    }
+    ids.forEach(id => {
+      const e = emojis[id];
+      const btn = document.createElement('button');
+      btn.title = ':' + e.name + ':';
+      const img = document.createElement('img');
+      img.src = httpBase + '/emojis/' + encodeURIComponent(id);
+      img.alt = e.name;
+      img.loading = 'lazy';
+      btn.appendChild(img);
+      btn.onclick = () => insertEmojiToken(id, e.name);
+      emojiGrid.appendChild(btn);
+    });
+  }
+
+  function insertEmojiToken(id, name){
+    const token = 'originChats:' + name + '//' + hostport + '/' + id;
+    const start = msgInput.selectionStart || msgInput.value.length;
+    const end = msgInput.selectionEnd || msgInput.value.length;
+    msgInput.value = msgInput.value.slice(0, start) + token + ' ' + msgInput.value.slice(end);
+    msgInput.focus();
+    updateLenCounter();
+    emojiPicker.classList.remove('open');
+  }
+
+  emojiToggleBtn.onclick = () => emojiPicker.classList.toggle('open');
+  document.addEventListener('click', (e) => {
+    if (!emojiPicker.contains(e.target) && e.target !== emojiToggleBtn) {
+      emojiPicker.classList.remove('open');
+    }
+  });
+
+  // ---------- Sending ----------
+  function updateLenCounter(){
+    const len = msgInput.value.length;
+    lenCounter.textContent = len + '/' + maxLen;
+    lenCounter.classList.toggle('over', len > maxLen);
+  }
+  msgInput.addEventListener('input', () => {
+    updateLenCounter();
+    msgInput.style.height = 'auto';
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+  });
+  msgInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendCurrentMessage();
+    }
+  });
+  sendBtn.onclick = sendCurrentMessage;
+
+  function sendCurrentMessage(){
+    if (!connected) return toast('Not connected', 'error');
+    const raw = msgInput.value.trim();
+    if (!raw) return;
+    if (raw.length > maxLen) return toast('Message too long', 'error');
+
+    if (raw.startsWith('/')) {
+      const name = raw.slice(1).split(' ')[0];
+      send({ cmd: 'slash_call', channel: currentChannel, name: name, raw: raw });
+      msgInput.value = '';
+      updateLenCounter();
+      return;
+    }
+
+    const content = '(' + username + ') - ' + raw;
+    const payload = { cmd: 'message_new', channel: currentChannel, content: content, ping: true };
+    if (replyingTo) payload.reply_to = replyingTo.id;
+    send(payload);
+
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
+    updateLenCounter();
+    replyingTo = null;
+    replyBanner.style.display = 'none';
+  }
+
+  function deleteMessage(channel, id){
+    send({ cmd: 'message_delete', channel: channel, id: id });
+  }
+
+  // ---------- Network ----------
+  function send(obj){
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(obj));
+    }
+  }
+
+  function requestMessages(channel, start){
+    send({ cmd: 'messages_get', channel: channel, start: start || 0, limit: 100 });
+  }
+
+  function buildUrls(addrRaw){
+    let addr = addrRaw.trim();
+    let wsUrl;
+    if (addr.startsWith('ws://') || addr.startsWith('wss://')) {
+      wsUrl = addr.replace(/\/$/, '') + '/';
+      hostport = addr.replace(/^wss?:\/\//, '').replace(/\/$/, '');
+    } else if (addr.startsWith('http://') || addr.startsWith('https://')) {
+      hostport = addr.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      wsUrl = (addr.startsWith('https') ? 'wss://' : 'ws://') + hostport + '/';
+    } else {
+      hostport = addr.replace(/\/$/, '');
+      wsUrl = 'ws://' + hostport + '/';
+    }
+    httpBase = wsUrl.startsWith('wss') ? 'https://' + hostport : 'http://' + hostport;
+    return wsUrl;
+  }
+
+  function connectToServer(addr, name){
+    lastAddr = addr;
+    const wsUrl = buildUrls(addr);
+    setConnState('connecting', 'connecting…');
+    try {
+      ws = new WebSocket(wsUrl);
+    } catch (e) {
+      return showConnectError('Could not open connection: ' + e.message);
+    }
+
+    ws.onopen = () => {
+      connected = true;
+      setConnState('ok', 'connected');
+      showMainApp();
+      send({ cmd: 'channels_get' });
+      send({ cmd: 'users_list' });
+      switchChannel(currentChannel);
+      pingInterval = setInterval(() => {
+        pingSentAt = performance.now();
+        send({ cmd: 'ping' });
+      }, 20000);
+    };
+
+    ws.onclose = () => {
+      connected = false;
+      setConnState('off', 'disconnected');
+      if (pingInterval) clearInterval(pingInterval);
+      toast('Disconnected from server', 'error');
+    };
+
+    ws.onerror = () => {
+      if (!connected) showConnectError('Could not reach that server.');
+    };
+
+    ws.onmessage = (evt) => {
+      let data;
+      try {
+        data = JSON.parse(evt.data);
+      } catch (e) { return; }
+
+      // server has a bug where slash_list double-encodes its payload into a raw string
+      if (typeof data === 'string') {
+        try {
+          const inner = JSON.parse(data);
+          toast('Slash commands available: ' + (Array.isArray(inner) ? inner.length : Object.keys(inner).length), 'info');
+        } catch (e) { /* not decodable, ignore */ }
+        return;
+      }
+      if (!data || typeof data !== 'object') return;
+      handleCommand(data);
+    };
+  }
+
+  function showConnectError(msg){
+    connectError.textContent = msg;
+    connectError.style.display = 'block';
+    connectBtn.disabled = false;
+    connectBtn.textContent = 'Connect';
+  }
+
+  function showMainApp(){
+    connectScreen.hidden = true;
+    mainApp.hidden = false;
+  }
+
+  // ---------- Command handlers ----------
+  function handleCommand(data){
+    switch (data.cmd) {
+      case 'server_update':
+      case 'server_info':
+        serverName.textContent = data.name || 'server';
+        if (data.icon) serverIcon.src = data.icon;
+        document.title = (data.name || 'SaltyChats') + ' // client';
+        break;
+
+      case 'handshake':
+        if (data.val && data.val.post_content) {
+          maxLen = data.val.post_content;
+          updateLenCounter();
+        }
+        break;
+
+      case 'emoji_list':
+        emojis = data.emojis || {};
+        renderEmojiGrid();
+        break;
+
+      case 'emoji_get':
+        if (data.error) toast(data.error, 'error');
+        break;
+
+      case 'channels_get':
+        channels = (data.val && data.val.length) ? data.val : ['general'];
+        renderChannelList();
+        break;
+
+      case 'messages_get': {
+        const ch = data.channel || currentChannel;
+        ensureCache(ch);
+        const msgs = (data.messages || []).filter(Boolean).slice();
+        msgs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        messageCache[ch] = msgs;
+        messageIndex[ch] = {};
+        msgs.forEach(m => { if (m.id) messageIndex[ch][m.id] = m; });
+        if (ch === currentChannel) renderChannelFromCache(ch);
+        loadOlderBtn.hidden = msgs.length < 100 ? true : false;
+        break;
+      }
+
+      case 'message_new': {
+        const ch = data.channel || currentChannel;
+        const msg = data.message;
+        if (!msg) break;
+        ensureCache(ch);
+        messageCache[ch].push(msg);
+        if (msg.id) messageIndex[ch][msg.id] = msg;
+        appendMessageDOM(msg, ch, true);
+        break;
+      }
+
+      case 'message_delete': {
+        const ch = data.channel || currentChannel;
+        removeMessageDOM(ch, data.id);
+        break;
+      }
+
+      case 'users_list':
+        onlineUsers = data.users || [];
+        renderUserList();
+        break;
+
+      case 'user_connect':
+        if (data.user && data.user.username) {
+          sysMsg(data.user.username + ' connected');
+          send({ cmd: 'users_list' });
+        }
+        break;
+
+      case 'user_leave':
+        if (data.username) {
+          sysMsg(data.username + ' left');
+          send({ cmd: 'users_list' });
+        }
+        break;
+
+      case 'status_set':
+        if (data.status && data.status.status) {
+          sysMsg('status broadcast: ' + data.status.status);
+        }
+        break;
+
+      case 'pong': {
+        const rtt = Math.round(performance.now() - pingSentAt);
+        pingLine.textContent = 'latency: ' + (rtt >= 0 ? rtt + 'ms' : '—');
+        break;
+      }
+
+      case 'error':
+        toast((data.src ? '[' + data.src + '] ' : '') + (data.val || 'Unknown error'), 'error');
+        break;
+
+      case 'capabilities':
+      case 'ready':
+      case 'auth_success':
+      case 'auth_error':
+      case 'user_roles_set':
+        // not used in this no-auth client
+        break;
+
+      default:
+        console.log('Unhandled command:', data.cmd, data);
+    }
+  }
+
+  // ---------- Wire up connect screen ----------
+  connectBtn.onclick = () => {
+    const addr = addrInput.value.trim();
+    const name = nameInput.value.trim();
+    connectError.style.display = 'none';
+    if (!addr) return showConnectError('Enter a server address.');
+    if (!name) return showConnectError('Pick a name.');
+    username = name.slice(0, 32);
+    try { localStorage.setItem('saltychats_name', username); } catch(e){}
+    try { localStorage.setItem('saltychats_addr', addr); } catch(e){}
+    meName.textContent = username;
+    connectBtn.disabled = true;
+    connectBtn.textContent = 'connecting…';
+    connectToServer(addr, username);
+  };
+
+  [addrInput, nameInput].forEach(el => {
+    el.addEventListener('keydown', (e) => { if (e.key === 'Enter') connectBtn.click(); });
+  });
+
+  function currentOriginAddr(){
+    // Derive the ws(s) address from wherever this page is being served,
+    // e.g. https://fries.hackclub.app/client -> wss://fries.hackclub.app
+    const proto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    return proto + window.location.host;
+  }
+
+  (function initAddress(){
+    const dynamicAddr = currentOriginAddr();
+    let savedAddr = null, savedName = null;
+    try {
+      savedAddr = localStorage.getItem('saltychats_addr');
+      savedName = localStorage.getItem('saltychats_name');
+    } catch(e){}
+
+    // If this page is being served over http/https (not opened as a local file),
+    // default to the address it's actually running on, and lock the field
+    // since it's not something the user needs to think about.
+    const servedRemotely = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+    if (servedRemotely && window.location.host) {
+      addrInput.value = dynamicAddr;
+      addrInput.readOnly = true;
+      addrInput.title = 'Auto-detected from the page you loaded this client from.';
+      const hint = addrInput.parentElement.querySelector('.hint');
+      if (hint) hint.textContent = 'Auto-detected — this client connects back to ' + window.location.host + '.';
+    } else if (savedAddr) {
+      addrInput.value = savedAddr;
+    }
+
+    if (savedName) nameInput.value = savedName;
+    if (servedRemotely && window.location.host) nameInput.focus();
+  })();
+
+  // ---------- Sidebar controls ----------
+  jumpBtn.onclick = () => {
+    const v = jumpInput.value.trim().replace(/^#/, '');
+    if (v) { switchChannel(v); jumpInput.value = ''; }
+  };
+  jumpInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') jumpBtn.click(); });
+
+  changeNameBtn.onclick = () => {
+    const n = prompt('New display name:', username);
+    if (n && n.trim()) {
+      username = n.trim().slice(0, 32);
+      meName.textContent = username;
+      try { localStorage.setItem('saltychats_name', username); } catch(e){}
+      toast('Name updated locally — it applies to messages you send from now on.', 'info');
+    }
+  };
+
+  statusBtn.onclick = () => {
+    const v = statusInput.value.trim();
+    if (!v) return;
+    send({ cmd: 'status_set', status: v });
+    statusInput.value = '';
+  };
+  statusInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') statusBtn.click(); });
+
+  reconnectBtn.onclick = () => {
+    if (ws) { try { ws.close(); } catch(e){} }
+    connectToServer(lastAddr, username);
+  };
+
+  // ---------- Poll modal ----------
+  pollBtn.onclick = () => pollOverlay.classList.add('open');
+  pollCancel.onclick = () => pollOverlay.classList.remove('open');
+  pollSubmit.onclick = () => {
+    const q = pollQuestion.value.trim();
+    const opts = pollOptions.value.split('\n').map(s => s.trim()).filter(Boolean);
+    if (!q || opts.length < 2) return toast('Add a question and at least 2 options', 'error');
+    send({
+      cmd: 'poll_create',
+      channel: currentChannel,
+      type: 'poll',
+      id: makeLocalId(),
+      question: q,
+      options: opts,
+      user: username,
+      timestamp: Math.floor(Date.now() / 1000)
+    });
+    toast('Poll sent to server', 'info');
+    pollOverlay.classList.remove('open');
+    pollQuestion.value = '';
+    pollOptions.value = '';
+  };
+
+  // ---------- Load-older ----------
+  loadOlderBtn.onclick = () => {
+    const ch = currentChannel;
+    const currentLen = (messageCache[ch] || []).length;
+    requestMessages(ch, currentLen);
+  };
+
+})();
+</script>
+</body>
+</html>

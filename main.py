@@ -65,9 +65,9 @@ validatorkey = make_id()
 # Litte crappy ai generated demo client I'm going to replace.
 @app.route('/client')
 async def index(request):
-    if os.path.exists('test.html'):
-        return send_file('test.html')
-    return "No test.html found"
+    if os.path.exists('client.html'):
+        return send_file('client.html')
+    return "client.html found"
 
 def get_emojis():
     emojis = {}
