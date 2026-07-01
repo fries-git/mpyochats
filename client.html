@@ -682,6 +682,12 @@
 
   function renderContent(text){
     let html = escapeHtml(text);
+    // bare urls -> links (must run before emoji substitution, otherwise this
+    // regex matches the https:// inside the img src we're about to insert
+    // and corrupts the tag)
+    html = html.replace(/(https?:\/\/[^\s<]+)/g, function(url){
+      return '<a href="' + url + '" target="_blank" rel="noopener">' + url + '</a>';
+    });
     // originChats:emoji//<hostport>/<id> -> inline emoji image. The "emoji" segment
     // is a literal tag (not a name) - id is what we actually look up.
     html = html.replace(/originChats:[^\/\s]+\/\/([^\/\s]+)\/([^\s]+)/g, function(_, hp, id){
@@ -690,11 +696,6 @@
       const known = emojis[id];
       const label = known ? known.name : ('emoji ' + id);
       return '<img class="emoji-inline" src="' + src + '" alt=":' + escapeHtml(label) + ':" title=":' + escapeHtml(label) + ':">';
-    });
-    // bare urls -> links
-    html = html.replace(/(https?:\/\/[^\s<]+)/g, function(url){
-      // don't linkify inside an already-built img tag's src, this runs on remaining text only
-      return '<a href="' + url + '" target="_blank" rel="noopener">' + url + '</a>';
     });
     html = html.replace(/\n/g, '<br>');
     return html;
