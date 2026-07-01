@@ -1,6 +1,6 @@
 # I should add comments...
 # Config ===
-servername = "mpyochats"
+servername = "mpyochatslocal"
 servericon = "https://github.com/fries-git/imagestorage/blob/main/saltychatsicon.webp?raw=true"
 maxmessages = 500
 maxlen = 500
@@ -55,9 +55,12 @@ if microcontroller:
     except Exception as e:
         print("Failed Microcontroller Init:", e)
 
-# Generates a random ID; I can probably simplify this.
+# Generates a random ID.
 def make_id():
     return f"{random.getrandbits(32):08x}"
+
+# Makes validator key.
+validatorkey = make_id()
 
 # Litte crappy ai generated demo client I'm going to replace.
 @app.route('/client')
@@ -113,7 +116,7 @@ def generatevalidationdata():
             "server": "mpyochats",
             "limits": {},
             "version": "1.0.1",
-            "validator_key": "mpyochats",
+            "validator_key": validatorkey,
             "post_content": maxlen
         }
     }
@@ -168,6 +171,14 @@ def command(name):
         commands[name] = fn
         return fn
     return wrapper
+
+# Tells the client what it can do
+@command("capabilities")
+async def capabilities(ws, data):
+    await ws.send(json.dumps({
+        "cmd": "capabilities",
+        "val": ["message_new", "message_delete", "poll_create", "emoji_list", "emoji_get", "slash_list", "slash_call", "status_set", "server_info", "users_list", "users_online", "typing"]
+    }))
 
 # Lists emojis.
 @command("emoji_list")
@@ -357,7 +368,7 @@ async def auth(ws, data):
     conn = next((c for c in connections if c.ws == ws), None)
     if conn is None:
         return
-    link = f"https://social.rotur.dev/validate?v={data.get('validator')}&key=mpyochats"
+    link = f"https://social.rotur.dev/validate?v={data.get('validator')}&key={validatorkey}"
     response = (requests.get(link)).json()
     if not response.get("valid", False):
         print("Failed to validate user")
@@ -375,6 +386,7 @@ async def auth(ws, data):
     }))
         conn.authenticated = True
     await ws.send(json.dumps(ready(response)))
+    await capabilities(ws, data)
     conn.user_id = response.get("id")
     conn.username = response.get("username")
     print(f"User authenticated: {conn.username}")
@@ -387,6 +399,50 @@ async def auth(ws, data):
     usernamestore = conn.username
     for conn in connections:
         await conn.ws.send(json.dumps(connect(usernamestore)))
+
+# Poll saving
+async def save_poll(data):
+    filename = f"{data.get('channel')}.json"
+    # Create the file if it doesn't exist
+    if not os.path.exists(filename):
+        with open(filename, "w") as f:
+            json.dump({}, f)
+
+    # Save the poll data
+    with open(filename, "w") as f:
+        json.dump(data, f)
+
+# Poll creation
+@command("poll_create")
+async def poll_create(ws, data):
+    print("Recieved poll_create")
+    print(data)
+    await save_poll(data)
+
+
+
+# Listing slash commands
+@command("slash_list")
+async def slash_list(ws, data):
+    print("Recieved slash_list")
+    with open("slashcommands.json", "r") as f:
+        content = json.dumps(json.load(f))
+    try:
+        await ws.send(json.dumps(content))
+        print("Sent slash commands to client")
+    except Exception as e:
+        print(f"Error sending slash commands: {e}")
+    
+
+# Implementation of slash stuff
+@command("slash_call")
+async def slash_call(ws, data):
+    conn = next((c for c in connections if c.ws == ws), None)
+    for conn in connections:
+        await conn.ws.send(json.dumps({
+            "cmd": "error",
+            "val": "Slash commands not implemented"
+        }))
 
 # Gets messages from a specific channel, with optional start and limit values.
 @command("messages_get")
@@ -543,7 +599,6 @@ async def message_new(ws, data):
 
     message_obj = await save_message(data, conn, ws)
     channelstore = data.get("channel")
-
     dead = []
 
     for conn in connections:
@@ -623,7 +678,6 @@ async def echo(request, ws):
     }))
 
     await ws.send(json.dumps(generatevalidationdata()))
-
     await ws.send(json.dumps({
         "cmd": "emoji_list",
         "emojis": get_emojis()
