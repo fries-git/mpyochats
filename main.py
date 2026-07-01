@@ -417,7 +417,7 @@ async def save_poll(data):
 async def poll_create(ws, data):
     print("Recieved poll_create")
     print(data)
-    await save_poll(data)
+    # await save_poll(data)
 
 
 
