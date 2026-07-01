@@ -1,249 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>mpyochats Test Client</title>
-
+<meta charset="UTF-8" />
+<title>mpyochats client</title>
 <style>
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #1e1e1e;
-    color: white;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-}
+    body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: #0f1117;
+        color: #e6e6e6;
+        display: flex;
+        height: 100vh;
+    }
 
-header {
-    background: #2b2b2b;
-    padding: 10px;
-}
+    #sidebar {
+        width: 220px;
+        background: #151826;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+    }
 
-#messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px;
-}
+    #chat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
 
-.message {
-    background: #2b2b2b;
-    padding: 8px;
-    margin-bottom: 6px;
-    border-radius: 6px;
-    word-wrap: break-word;
-}
+    #messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+    }
 
-#bottom {
-    display: flex;
-    gap: 8px;
-    padding: 10px;
-    background: #2b2b2b;
-}
+    .msg {
+        padding: 8px;
+        margin-bottom: 6px;
+        background: #1a1f33;
+        border-radius: 8px;
+        transition: all 0.25s ease;
+    }
 
-input, select {
-    background: #3a3a3a;
-    color: white;
-    border: none;
-    padding: 8px;
-    border-radius: 4px;
-}
+    .msg .user {
+        font-weight: bold;
+        color: #7aa2ff;
+    }
 
-#msg {
-    flex: 1;
-}
+    .msg.delete {
+        opacity: 0;
+        transform: translateX(40px) scale(0.95);
+    }
 
-button {
-    background: #4b7bec;
-    color: white;
-    border: none;
-    padding: 8px 14px;
-    border-radius: 4px;
-    cursor: pointer;
-}
+    #inputbar {
+        display: flex;
+        padding: 10px;
+        background: #151826;
+        gap: 6px;
+    }
 
-button:hover {
-    background: #5c89f2;
-}
+    input {
+        flex: 1;
+        padding: 10px;
+        border-radius: 6px;
+        border: none;
+        background: #0f1117;
+        color: white;
+    }
+
+    button {
+        background: #2a3355;
+        border: none;
+        color: white;
+        padding: 10px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    #emojiPanel {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+    }
+
+    .emojiBtn {
+        background: #1a1f33;
+        border-radius: 6px;
+        padding: 6px;
+        cursor: pointer;
+        text-align: center;
+        font-size: 18px;
+    }
+
+    #status {
+        font-size: 12px;
+        opacity: 0.7;
+        margin-bottom: 10px;
+    }
 </style>
 </head>
-
 <body>
 
-<header>
-    <div id="server">Connecting...</div>
-    <br>
-    Channel:
-    <select id="channel"></select>
-</header>
+<div id="sidebar">
+    <div id="status">Disconnected</div>
+    <button onclick="connect()">Connect</button>
+    <div id="emojiPanel"></div>
+</div>
 
-<div id="messages"></div>
+<div id="chat">
+    <div id="messages"></div>
 
-<div id="bottom">
-    <input id="msg" placeholder="Type a message...">
-    <button id="send">Send</button>
+    <div id="inputbar">
+        <input id="msgInput" placeholder="type a message..." />
+        <button onclick="sendMsg()">Send</button>
+    </div>
 </div>
 
 <script>
-
-const username = prompt("Username?") || ("Guest" + Math.floor(Math.random()*10000));
-
-let currentChannel = "";
-
-const ws = new WebSocket(
-    (location.protocol === "https:" ? "wss://" : "ws://") +
-    location.host +
-    "/"
-);
+let ws;
+let username = prompt("Username?") || "guest";
 
 const messages = document.getElementById("messages");
-const channelSelect = document.getElementById("channel");
-const input = document.getElementById("msg");
+const statusEl = document.getElementById("status");
+const emojiPanel = document.getElementById("emojiPanel");
 
-function send(packet) {
-    ws.send(JSON.stringify(packet));
+function connect() {
+    ws = new WebSocket("ws://localhost:8080");
+
+    ws.onopen = () => {
+        statusEl.textContent = "Connected 🟢";
+        ws.send(JSON.stringify({ cmd: "ping" }));
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        switch (data.cmd) {
+            case "message_new":
+                renderMessage(data.message);
+                break;
+
+            case "message_delete":
+                animateDelete(data.id);
+                break;
+
+            case "emoji_list":
+                loadEmojis(data.emojis);
+                break;
+
+            case "server_update":
+                statusEl.textContent = "Connected to " + data.name;
+                break;
+
+            case "pong":
+                console.log("pong");
+                break;
+        }
+    };
+
+    ws.onclose = () => {
+        statusEl.textContent = "Disconnected 🔴";
+    };
 }
 
-function addMessage(text) {
-    const div = document.createElement("div");
-    div.className = "message";
-    div.textContent = text;
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
-}
+function sendMsg() {
+    const input = document.getElementById("msgInput");
+    const text = input.value.trim();
+    if (!text) return;
 
-function loadMessages() {
-    if (!currentChannel) return;
-
-    send({
-        cmd: "messages_get",
-        channel: currentChannel,
-        limit: 100
-    });
-}
-
-function sendMessage() {
-    if (!input.value.trim())
-        return;
-
-    send({
+    ws.send(JSON.stringify({
         cmd: "message_new",
-        channel: currentChannel,
-        content: `${username} - ${input.value}`
-    });
+        channel: "global",
+        content: username + ": " + text
+    }));
 
     input.value = "";
 }
 
-document.getElementById("send").onclick = sendMessage;
+function renderMessage(msg) {
+    const div = document.createElement("div");
+    div.className = "msg";
+    div.id = msg.id;
 
-input.addEventListener("keydown", e => {
-    if (e.key === "Enter")
-        sendMessage();
-});
+    div.innerHTML = `
+        <span class="user">${msg.user}</span>: 
+        <span class="content">${msg.content}</span>
+    `;
 
-channelSelect.onchange = () => {
-    currentChannel = channelSelect.value;
-    messages.innerHTML = "";
-    loadMessages();
-};
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+}
 
-ws.onopen = () => {
-    addMessage("Connected.");
+function animateDelete(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
 
-    send({
-        cmd: "channels_get"
+    el.classList.add("delete");
+
+    setTimeout(() => {
+        el.remove();
+    }, 250);
+}
+
+function loadEmojis(emojis) {
+    emojiPanel.innerHTML = "";
+
+    Object.entries(emojis).forEach(([id, e]) => {
+        const btn = document.createElement("div");
+        btn.className = "emojiBtn";
+
+        btn.textContent = "😀";
+        btn.title = e.name;
+
+        btn.onclick = () => {
+            const input = document.getElementById("msgInput");
+            input.value += " :" + e.name + ": ";
+            input.focus();
+        };
+
+        emojiPanel.appendChild(btn);
     });
+}
 
-    send({
-        cmd: "users_list"
-    });
-};
-
-ws.onmessage = e => {
-
-    const data = JSON.parse(e.data);
-
-    console.log(data);
-
-    switch(data.cmd) {
-
-        case "server_update":
-            document.getElementById("server").textContent =
-                `${data.name}`;
-            break;
-
-        case "channels_get":
-
-            channelSelect.innerHTML = "";
-
-            for (const channel of data.val) {
-
-                const option = document.createElement("option");
-
-                let value;
-                let label;
-
-                if (typeof channel === "string") {
-                    value = channel;
-                    label = channel;
-                } else {
-                    value = channel.id || channel.name || channel.channel || JSON.stringify(channel);
-                    label = channel.name || channel.id || channel.channel || JSON.stringify(channel);
-                }
-
-                option.value = value;
-                option.textContent = label;
-
-                channelSelect.appendChild(option);
-            }
-
-            if (channelSelect.options.length > 0) {
-                currentChannel = channelSelect.options[0].value;
-                channelSelect.value = currentChannel;
-                loadMessages();
-            }
-
-            break;
-
-        case "messages_get":
-
-            messages.innerHTML = "";
-
-            for (const msg of data.messages) {
-                addMessage(msg.content);
-            }
-
-            break;
-
-        case "message_new":
-
-            if (data.channel !== currentChannel)
-                return;
-
-            addMessage(data.message.content);
-
-            break;
-
-        case "message_delete":
-            addMessage("(A message was deleted)");
-            break;
-
-        case "users_list":
-            console.log("Users:", data.users);
-            break;
-
-        case "error":
-            alert(data.val);
-            break;
-    }
-
-};
-
-ws.onclose = () => {
-    addMessage("Disconnected.");
-};
-
+// auto connect
+connect();
 </script>
 
 </body>
