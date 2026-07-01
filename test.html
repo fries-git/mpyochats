@@ -180,14 +180,26 @@ ws.onmessage = e => {
             for (const channel of data.val) {
 
                 const option = document.createElement("option");
-                option.value = channel;
-                option.textContent = channel;
+
+                let value;
+                let label;
+
+                if (typeof channel === "string") {
+                    value = channel;
+                    label = channel;
+                } else {
+                    value = channel.id || channel.name || channel.channel || JSON.stringify(channel);
+                    label = channel.name || channel.id || channel.channel || JSON.stringify(channel);
+                }
+
+                option.value = value;
+                option.textContent = label;
 
                 channelSelect.appendChild(option);
             }
 
-            if (data.val.length > 0) {
-                currentChannel = data.val[0];
+            if (channelSelect.options.length > 0) {
+                currentChannel = channelSelect.options[0].value;
                 channelSelect.value = currentChannel;
                 loadMessages();
             }
